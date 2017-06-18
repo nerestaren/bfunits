@@ -4,4 +4,6 @@
 out
 gen
 
-bravefrontier_data*
+bravefrontier_data
+node_modules
+log/
