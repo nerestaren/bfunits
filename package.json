@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/nerestaren/bfunits#readme",
   "dependencies": {
-    "request": "^2.81.0"
+    "jimp": "^0.2.28",
+    "request": "^2.81.0",
+    "request-promise-native": "^1.0.4"
   }
 }
