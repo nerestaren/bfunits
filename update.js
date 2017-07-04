@@ -2,62 +2,57 @@
 
 const fs = require('fs');
 const path = require('path');
-const {spawn, spawnSync} = require('child_process');
 const request = require('request');
 
-fs.readFile(path.join('bravefrontier_data', 'last_update.txt'), 'utf8', (err, data) => {
+fs.access('.updating', (err) => {
     if (err) {
-        console.error(err);
-    } else {
-        data = data.replace('\r\n', '\n');
-        request('https://raw.githubusercontent.com/Deathmax/bravefrontier_data/master/last_update.txt', (error, response, body) => {
-            if (error) {
-                console.error(error);
+        fs.readFile(path.join('bravefrontier_data', 'last_update.txt'), 'utf8', (err, data) => {
+            if (err) {
+                console.error(err);
             } else {
-                if (data === body) {
-                    //console.log(new Date().toISOString() + '\t' + 'No changes.\n');
-                } else {
-                    performUpdate();
-                }
+                request('https://raw.githubusercontent.com/Deathmax/bravefrontier_data/master/last_update.txt', (error, response, body) => {
+                    if (error) {
+                        console.error(error);
+                    } else {
+                        if (data === body) {
+                            // No changes
+                        } else {
+                            performUpdate();
+                        }
+                    }
+                });
             }
         });
+    } else {
+        console.error(new Date().toISOString() + '\t' + 'Already updating.\n');
     }
 });
 
 function performUpdate() {
-    process.chdir('bravefrontier_data');
 
-    const checkout = spawn('git', ['checkout', 'HEAD', 'last_update.txt', 'info.json', 'items.json', 'ai.json', 'bbs.json', 'es.json', 'evo_list.json', 'feskills.json', 'ls.json']);
+    fs.writeFileSync('.updating');
 
-    checkout.stdout.on('data', (data) => {
-        console.log(data.toString());
+    const files = ['last_update.txt', 'info.json', 'items.json', 'ai.json', 'bbs.json', 'es.json', 'evo_list.json', 'feskills.json', 'ls.json'];
+    let promises = [];
+
+    files.forEach(f => {
+        promises.push(new Promise((resolve, reject) => {
+            request('https://raw.githubusercontent.com/Deathmax/bravefrontier_data/master/' + f)
+                .pipe(fs.createWriteStream(path.join('bravefrontier_data', f)))
+                .on('error', error => {
+                    reject(error);
+                })
+                .on('finish', () => {
+                    resolve();
+                });
+        }));
     });
 
-    checkout.stderr.on('data', (data) => {
-        console.error(data.toString());
-    });
-
-    checkout.on('exit', (code) => {
-        if (code === 0) {
-            console.log(new Date().toISOString() + '\t' + 'Updated.\n')
-        } else {
-            console.error(new Date().toISOString() + '\t' + 'Error updating.\n');
-        }
+    Promise.all(promises).then(() => {
+        fs.unlinkSync('.updating');
+        console.log(new Date().toISOString() + '\t' + 'Updated.\n');
+    }).catch(error => {
+        fs.unlinkSync('.updating');
+        console.error(new Date().toISOString() + '\t' + 'Error updating: ' + error + '\n');
     });
 }
-
-/*process.chdir('bravefrontier_data');
-
- const checkout = spawn('git', ['checkout', 'HEAD', 'last_update.txt']);
-
- checkout.on('exit', (code) => {
- console.log('checkout amb èxit', code);
-
- fs.readFile('last_update.txt', (err, data) => {
- if (err) {
- console.error(err);
- } else {
- console.log(data);
- }
- });
- });*/
