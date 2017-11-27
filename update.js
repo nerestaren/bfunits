@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const request = require('request');
+const { spawnSync } = require('child_process');
+
 
 fs.access('.updating', (err) => {
     if (err) {
@@ -51,8 +53,23 @@ function performUpdate() {
     Promise.all(promises).then(() => {
         fs.unlinkSync('.updating');
         console.log(new Date().toISOString() + '\t' + 'Updated.\n');
+        processData();
     }).catch(error => {
         fs.unlinkSync('.updating');
         console.error(new Date().toISOString() + '\t' + 'Error updating: ' + error + '\n');
     });
+}
+
+function processData() {
+    let scripts = fs.readdirSync('scripts');
+    scripts.forEach(file => {
+        console.log(file);
+        require('./' + path.join('scripts', file)).run();
+    });
+    fs.writeFileSync(path.join('bravefrontier_data_processed', 'last_update.txt'), fs.readFileSync(path.join('bravefrontier_data', 'last_update.txt')));
+    process.chdir('bravefrontier_data_processed');
+    spawnSync('git', ['add', '.']);
+    spawnSync('git', ['commit', '-m', new Date().toISOString()]);
+    spawnSync('git', ['push']);
+    process.chdir('..');
 }
